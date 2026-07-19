@@ -1,18 +1,46 @@
 import asyncio
 import os
-
+from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, F
 from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from telethon import TelegramClient, sync
 
+# Настройки для Telethon
+API_ID = os.getenv("API_ID")  # Добавьте свои значения
+API_HASH = os.getenv("API_HASH")  # Добавьте свои значения
+
+# Настройки для aiogram
 BOT_TOKEN = ("8814954306:AAFpwg1Kbp38LUYt4FAYXKgPMkdfLuLpVfk")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher()
 
 user_channels = {}
+client = TelegramClient('session_name', API_ID, API_HASH)
 
+async def fetch_channel_posts(channel_id):
+    try:
+        async with client:
+            # Получаем последние 10 постов
+            posts = await client.get_messages(channel_id, limit=10)
+            return [post for post in posts if post.date > datetime.now() - timedelta(days=2)]
+    except Exception as e:
+        print(f"Ошибка при получении постов: {e}")
+        return []
+
+async def get_random_post(user_id):
+    channels = user_channels.get(user_id, [])
+    all_posts = []
+    
+    for channel in channels:
+        posts = await fetch_channel_posts(channel)
+        all_posts.extend(posts)
+    
+    if all_posts:
+        return random.choice(all_posts)
+    return None
 
 @dp.message(CommandStart())
 async def start(message: Message):
@@ -23,7 +51,6 @@ async def start(message: Message):
         "@meduza\n"
         "@vcnews"
     )
-
 
 @dp.message(F.text.startswith("@"))
 async def save_channels(message: Message):
@@ -40,37 +67,42 @@ async def save_channels(message: Message):
         reply_markup=kb.as_markup()
     )
 
-
 @dp.callback_query(F.data == "save")
 async def save(callback: CallbackQuery):
-    kb = InlineKeyboardBuilder()
-    kb.button(text="⬅️ Назад", callback_data="prev")
-    kb.button(text="➡️ Далее", callback_data="next")
-    kb.adjust(2)
-
-    await callback.message.edit_text(
-        "📰 Здесь позже будет случайный пост из выбранных каналов.",
-        reply_markup=kb.as_markup()
-    )
-
-
-@dp.callback_query(F.data == "edit")
-async def edit(callback: CallbackQuery):
-    await callback.message.edit_text(
-        "Отправь список каналов заново."
-    )
-
+    post = await get_random_post(callback.from_user.id)
+    
+    if post:
+        kb = InlineKeyboardBuilder()
+        kb.button(text="⬅️ Назад", callback_data="prev")
+        kb.button(text="➡️ Далее", callback_data="next")
+        kb.adjust(2)
+        
+        await callback.message.edit_text(
+            f"{post.message}\n\nИсточник: {post.chat.title}",
+            reply_markup=kb.as_markup()
+        )
+    else:
+        await callback.message.edit_text("Постов не найдено")
 
 @dp.callback_query(F.data.in_(["next", "prev"]))
 async def nav(callback: CallbackQuery):
-    await callback.answer(
-        "В полной версии здесь будет переключение постов."
-    )
-
+    post = await get_random_post(callback.from_user.id)
+    
+    if post:
+        kb = InlineKeyboardBuilder()
+        kb.button(text="⬅️ Назад", callback_data="prev")
+        kb.button(text="➡️ Далее", callback_data="next")
+        kb.adjust(2)
+        
+        await callback.message.edit_text(
+            f"{post.message}\n\nИсточник: {post.chat.title}",
+            reply_markup=kb.as_markup()
+        )
+    else:
+        await callback.message.edit_text("Постов не найдено")
 
 async def main():
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
