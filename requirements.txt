@@ -1,1 +1,4 @@
 aiogram
+python-dotenv
+python-telegram-bot
+asyncio
