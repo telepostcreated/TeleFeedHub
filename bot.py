@@ -6,9 +6,9 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-BOT_TOKEN = os.getenv("8814954306:AAFpwg1Kbp38LUYt4FAYXKgPMkdfLuLpVfk")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-bot = Bot(BOT_TOKEN)
+bot = Bot(8814954306:AAFpwg1Kbp38LUYt4FAYXKgPMkdfLuLpVfk)
 dp = Dispatcher()
 
 user_channels = {}
